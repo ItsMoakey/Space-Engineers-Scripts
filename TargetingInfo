@@ -1,0 +1,85 @@
+// ItsMoakey's Targeting Script
+// 
+// 
+// Change Names
+string TurretnamePrefix = "Targeting Turret";
+string LCDname = "Info LCD";
+
+// Code Below Here
+List<IMyLargeTurretBase> turrets = new List<IMyLargeTurretBase>();
+IMyTextPanel lcd;
+
+char[] spinnerChars = new char[] { '/', '-', '\\', '|' };
+int spinnerIndex = 0;
+
+public Program()
+{
+    Runtime.UpdateFrequency = UpdateFrequency.Update10; // Update every 10 ticks (approx. 1 second)
+
+    // Get all turrets with the specified prefix and the LCD by name
+    GridTerminalSystem.GetBlocksOfType(turrets, t => t.CustomName.Contains(TurretnamePrefix));
+    lcd = GridTerminalSystem.GetBlockWithName(LCDname) as IMyTextPanel;
+
+   if (turrets.Count == 0)
+    {
+        Echo("Error: No turrets found.");
+    }
+    if (lcd == null)
+    {
+        Echo("Error: LCD not found.");
+    }
+}
+
+public void Main(string argument, UpdateType updateSource)
+{
+    lcd.ContentType = ContentType.TEXT_AND_IMAGE;
+
+    if (turrets.Count == 0 || lcd == null)
+    {
+        return;
+    }
+
+    // Working Status
+    spinnerIndex = (spinnerIndex + 1) % spinnerChars.Length;
+    string spinning = spinnerChars[spinnerIndex].ToString();
+
+    Echo("Working Status: " + spinning);
+
+    // Turret Detection
+    MyDetectedEntityInfo targetInfo = default(MyDetectedEntityInfo);
+    bool targetFound = false;
+
+    // Check each turret for a target lock
+    foreach (var turret in turrets)
+    {
+        targetInfo = turret.GetTargetedEntity();
+        if (!targetInfo.IsEmpty())
+        {
+            targetFound = true;
+            break;
+        }
+    }
+
+    // Display target information or no target message
+    if (!targetFound)
+    {
+        lcd.WriteText($"No Target Locked {spinning}");
+        return;
+    }
+
+    // Display target information
+    string type = targetInfo.Name;
+    double distance = Math.Floor(Vector3D.Distance(turrets[0].GetPosition(), targetInfo.Position));
+    Vector3D velocityV = targetInfo.Velocity;
+
+    Vector3D velocityVraw = new Vector3D(Math.Floor(velocityV.X), Math.Floor(velocityV.Y), Math.Floor(velocityV.Z));
+    double velocity =velocityV.Length();
+
+    string infotext = $"Target Information: {spinning}\n";
+    infotext += $"Grid Type: {type}\n";
+    infotext += $"Distance: {distance}m\n";
+    infotext += $"VelocityVector: {velocityVraw}\n";
+    infotext += $"Velocity: {velocity:F2}m/s\n";
+
+    lcd.WriteText(infotext);
+}
